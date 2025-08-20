@@ -24,3 +24,77 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Overrides for rrweb-player */
+.rr-controller {
+    background: #fff !important;
+    border-top: 1px solid #e5e7eb !important; /* border-gray-200 */
+}
+
+.rr-timeline__time {
+    color: #4b5563 !important; /* text-gray-600 */
+    width: auto !important;
+}
+
+.rr-progress {
+    background: #e5e7eb !important; /* bg-gray-200 */
+    border-top: 4px solid #fff !important;
+    border-bottom: 4px solid #fff !important;
+}
+
+.rr-progress__step {
+    background: #3b82f6 !important; /* bg-blue-500 */
+}
+
+.rr-progress__handler {
+    background: #60a5fa !important; /* bg-blue-400 */
+}
+
+.rr-controller__btns button {
+    color: #4b5563 !important; /* text-gray-600 */
+}
+
+.rr-controller__btns button:hover {
+    background: #f3f4f6 !important; /* bg-gray-100 */
+}
+
+.rr-controller__btns button.active {
+    background: #3b82f6 !important; /* bg-blue-500 */
+    color: #fff !important;
+}
+
+.switch .label {
+    color: #4b5563 !important; /* text-gray-600 */
+}
+
+.switch label:before {
+    background: rgba(59, 130, 246, 0.5) !important; /* semi-transparent blue */
+}
+
+.switch input[type="checkbox"]:checked + label:before {
+    background: #3b82f6 !important; /* bg-blue-500 */
+}
+
+.switch label:after {
+    background: #fff !important;
+    border: 1px solid #e5e7eb;
+}
+
+/* Full width timeline and buttons */
+.rr-timeline {
+    width: 100% !important;
+    padding: 0 20px !important;
+    box-sizing: border-box !important;
+}
+
+.rr-controller__btns {
+    width: 100% !important;
+    display: flex !important;
+    padding: 0 20px !important;
+    box-sizing: border-box !important;
+    justify-content: flex-start !important;
+}
+
+.rr-controller__btns .switch {
+    margin-left: auto !important;
+}

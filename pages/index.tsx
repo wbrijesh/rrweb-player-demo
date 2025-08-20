@@ -1,115 +1,221 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import React, { useEffect, useRef, useState } from 'react';
+import rrwebPlayer from 'rrweb-player';
+import 'rrweb-player/dist/style.css';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// --- SVG Icons (self-contained to avoid external dependencies) ---
+const UploadCloud = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+    <path d="M12 12v9" />
+    <path d="m16 16-4-4-4 4" />
+  </svg>
+);
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const XCircle = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m15 9-6 6" />
+    <path d="m9 9 6 6" />
+  </svg>
+);
 
-export default function Home() {
+const Play = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+    </svg>
+);
+
+const Pause = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <rect x="6" y="4" width="4" height="16"></rect>
+        <rect x="14" y="4" width="4" height="16"></rect>
+    </svg>
+);
+
+// --- Main App Component ---
+export default function App() {
+  const playerContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const playerRef = useRef(null);
+  const [events, setEvents] = useState([]);
+  const [fileName, setFileName] = useState('');
+  const [error, setError] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // --- File Upload Handler ---
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setError('');
+    setFileName(file.name);
+    setIsPlaying(false); // Reset playing state on new file
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const fileContent = e.target.result;
+        const parsedJson = JSON.parse(fileContent);
+        
+        let eventsArray = Array.isArray(parsedJson) ? parsedJson : (parsedJson && Array.isArray(parsedJson.events)) ? parsedJson.events : [];
+
+        if (eventsArray.length > 0) {
+          setEvents(eventsArray);
+        } else {
+          throw new Error('JSON is valid, but no events array was found or it is empty.');
+        }
+      } catch (err) {
+        console.error("File parsing error:", err);
+        setError(`Failed to parse file: ${err.message}. Please upload a valid rrweb JSON recording.`);
+        setEvents([]);
+        setFileName('');
+      }
+    };
+    reader.onerror = () => {
+        setError('An error occurred while reading the file.');
+        setEvents([]);
+        setFileName('');
+    }
+    reader.readAsText(file);
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  // --- Custom Play/Pause Handlers ---
+  const handlePlay = () => {
+      if (playerRef.current) {
+          playerRef.current.play();
+      }
+  };
+
+  const handlePause = () => {
+      if (playerRef.current) {
+          playerRef.current.pause();
+      }
+  };
+
+  // --- Initialize or Re-initialize Player ---
+  useEffect(() => {
+    if (playerRef.current) {
+        playerRef.current.pause();
+        if(playerContainerRef.current) {
+            playerContainerRef.current.innerHTML = '';
+        }
+        playerRef.current = null;
+    }
+
+    if (playerContainerRef.current && events.length > 0) {
+      try {
+          const playerInstance = new rrwebPlayer({
+            target: playerContainerRef.current,
+            props: {
+              events,
+              width: playerContainerRef.current.clientWidth,
+              height: playerContainerRef.current.clientHeight,
+              autoPlay: false, 
+              showController: true, 
+            },
+          });
+          
+          playerRef.current = playerInstance;
+
+          // --- Event listeners to sync custom controls with player state ---
+          const onPlay = () => setIsPlaying(true);
+          const onPause = () => setIsPlaying(false);
+          
+          playerInstance.addEventListener('play', onPlay);
+          playerInstance.addEventListener('pause', onPause);
+          // The 'finish' event is also treated as a pause
+          playerInstance.addEventListener('finish', onPause);
+
+          // Cleanup function to remove listeners
+          return () => {
+              playerInstance.removeEventListener('play', onPlay);
+              playerInstance.removeEventListener('pause', onPause);
+              playerInstance.removeEventListener('finish', onPause);
+          };
+
+      } catch (playerError) {
+          console.error("rrweb player initialization error:", playerError);
+          setError("Failed to initialize the player with the provided events.");
+      }
+    }
+    
+  }, [events]);
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20`}
-    >
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="bg-white text-black min-h-screen flex flex-col items-center justify-center font-sans p-4">
+      <div className="w-full max-w-4xl">
+        <header className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2 text-blue-600">rrweb React Player</h1>
+          <p className="text-lg text-gray-600">
+            Upload and replay your own rrweb session recordings.
+          </p>
+        </header>
+
+        <main className="bg-gray-100 rounded-2xl shadow-2xl shadow-blue-500/10 overflow-hidden">
+          <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+              <h2 className="text-xl font-semibold">Session Recording</h2>
+              <p className="text-gray-600 text-sm mt-1">
+                {fileName ? `Now playing: ${fileName}` : 'Upload a JSON file to begin.'}
+              </p>
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="application/json,.json" className="hidden" />
+            <button
+              onClick={triggerFileSelect}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75"
+            >
+              <UploadCloud size={20} />
+              Upload Recording
+            </button>
+          </div>
+          
+          {error && (
+            <div className="m-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-center gap-3">
+              <XCircle size={20} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div 
+            className="rr-player-wrapper relative"
+            style={{ width: '100%', height: '600px', backgroundColor: '#f7fafc' }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <div ref={playerContainerRef} className="rr-player w-full h-full"></div>
+
+            {events.length === 0 && !error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 p-8 text-center pointer-events-none">
+                <UploadCloud size={48} className="mb-4 text-gray-400" />
+                <h3 className="text-lg font-semibold">Awaiting Recording</h3>
+                <p>Please upload an rrweb session file to start the playback.</p>
+              </div>
+            )}
+          </div>
+          {/* --- Custom Controls Section --- */}
+          {events.length > 0 && !error && (
+            <div className="p-4 bg-gray-200/50 flex justify-center items-center gap-4">
+                {isPlaying ? (
+                    <button onClick={handlePause} className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        <Pause size={20} />
+                        Pause
+                    </button>
+                ) : (
+                    <button onClick={handlePlay} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        <Play size={20} />
+                        Play
+                    </button>
+                )}
+            </div>
+          )}
+        </main>
+        
+        <footer className="text-center mt-8 text-gray-500 text-sm">
+            <p>Ensure your file is a valid JSON array of rrweb events.</p>
+        </footer>
+      </div>
     </div>
   );
 }
